@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Share files with friends over campus WiFi">
+    <title>wifiShare — Campus File Sharing</title>
+
+    <!-- 
+        WHAT: Loading a modern font from Google Fonts
+        WHY:  Default browser fonts look boring and outdated.
+              'Inter' is a clean, modern font used by many popular apps.
+        HOW:  The browser downloads this font from Google's servers
+              and uses it instead of the default font.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============================================
+           CSS = Cascading Style Sheets
+           This is what makes the page LOOK good.
+           Without CSS, the page would be plain black text
+           on a white background (ugly!).
+           ============================================ */
+
+        /* '*' means "apply to ALL elements" */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box; /* Makes width/height calculations easier */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            /* A dark gradient background — two colors blending into each other */
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #e0e0e0;
+            min-height: 100vh; /* vh = viewport height. 100vh = full screen height */
+            padding: 2rem;    /* rem = relative to root font size. 2rem ≈ 32px */
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto; /* auto left/right margin = centered horizontally */
+        }
+
+        /* ---- HEADER ---- */
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 700;
+            /* Gradient text effect — the text itself has a color gradient */
+            background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #9ca3af;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        /* ---- UPLOAD ZONE ---- */
+        /* 
+            This is the drag-and-drop area.
+            'dashed border' = the dotted outline you see.
+            We change its look when you drag a file over it (via JavaScript).
+        */
+        .upload-zone {
+            border: 2px dashed #4b5563;
+            border-radius: 16px;  /* Rounded corners */
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;       /* Shows a hand cursor when you hover */
+            transition: all 0.3s ease; /* Smooth animation when styles change */
+            /* Glassmorphism effect — semi-transparent with blur */
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            margin-bottom: 2rem;
+        }
+
+        /* ':hover' = when mouse is over the element */
+        .upload-zone:hover {
+            border-color: #a78bfa;
+            background: rgba(167, 139, 250, 0.05);
+        }
+
+        /* '.drag-over' class is added by JavaScript when you drag a file over */
+        .upload-zone.drag-over {
+            border-color: #34d399;
+            background: rgba(52, 211, 153, 0.1);
+            transform: scale(1.02); /* Slightly bigger */
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            color: #d1d5db;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        /* Hidden file input — we use JavaScript to trigger it */
+        .file-input {
+            display: none;
+        }
+
+        /* ---- PROGRESS BAR ---- */
+        .progress-container {
+            display: none; /* Hidden by default, shown during upload */
+            margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: #1f2937;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.75rem;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #a78bfa, #34d399);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #9ca3af;
+        }
+
+        /* ---- STATUS MESSAGE ---- */
+        .status {
+            text-align: center;
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: none; /* Hidden by default */
+            font-size: 0.9rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .status.success {
+            display: block;
+            background: rgba(52, 211, 153, 0.1);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .status.error {
+            display: block;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        /* ---- FILE LIST ---- */
+        .files-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .files-header {
+            display: flex;                  /* Flexbox = easy horizontal layout */
+            justify-content: space-between; /* Push items to opposite ends */
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .files-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #e5e7eb;
+        }
+
+        .refresh-btn {
+            background: rgba(167, 139, 250, 0.1);
+            color: #a78bfa;
+            border: 1px solid rgba(167, 139, 250, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(167, 139, 250, 0.2);
+        }
+
+        .file-list {
+            list-style: none; /* Remove bullet points */
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            transition: all 0.2s ease;
+        }
+
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem; /* Space between child elements */
+            min-width: 0;  /* Allows text to shrink/truncate */
+        }
+
+        .file-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0; /* Don't let the icon shrink */
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: #e5e7eb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; /* Shows "..." if name is too long */
+        }
+
+        .file-size {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-1px); /* Slight lift effect */
+            box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+
+        .empty-state .empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        /* ---- ANIMATIONS ---- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ---- RESPONSIVE ---- */
+        /* When screen is smaller than 600px (mobile phones) */
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            h1 { font-size: 1.75rem; }
+            .upload-zone { padding: 2rem 1rem; }
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            .download-btn { width: 100%; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📁 wifiShare</h1>
+        <p class="subtitle">Drop files here to share with friends on campus</p>
+
+        <!-- Upload Zone -->
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">☁️</div>
+            <p class="upload-text">Drag & drop files here</p>
+            <p class="upload-hint">or click to browse • Max 50MB per file</p>
+            <input type="file" class="file-input" id="fileInput" multiple>
+        </div>
+
+        <!-- Progress Bar (hidden by default) -->
+        <div class="progress-container" id="progressContainer">
+            <span class="progress-text" id="progressText">Uploading...</span>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <!-- Status Message (hidden by default) -->
+        <div class="status" id="statusMessage"></div>
+
+        <!-- File List -->
+        <div class="files-section">
+            <div class="files-header">
+                <h2>📂 Shared Files</h2>
+                <button class="refresh-btn" id="refreshBtn" onclick="loadFiles()">↻ Refresh</button>
+            </div>
+            <ul class="file-list" id="fileList">
+                <li class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <p>No files shared yet. Upload something!</p>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!--
+        ============================================
+        JAVASCRIPT
+        This is what makes the page INTERACTIVE.
+        Without JS, clicking buttons wouldn't do anything.
+        
+        JS runs IN THE BROWSER (on your friend's device),
+        not on your server. It sends HTTP requests to your
+        Go server to upload/download files.
+        ============================================
+    -->
+    <script>
+        // ---- REFERENCES TO HTML ELEMENTS ----
+        // document.getElementById finds an element by its 'id' attribute
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const statusMessage = document.getElementById('statusMessage');
+        const fileList = document.getElementById('fileList');
+
+        // ---- DRAG AND DROP ----
+        // These events fire when you drag a file over the upload zone
+        
+        // 'dragover' = file is hovering over the zone
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Prevent browser's default behavior (opening the file)
+            uploadZone.classList.add('drag-over'); // Add green highlight
+        });
+
+        // 'dragleave' = file left the zone without being dropped
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-over'); // Remove green highlight
+        });
+
+        // 'drop' = file was released over the zone
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            const files = e.dataTransfer.files; // Get the dropped files
+            if (files.length > 0) {
+                handleFiles(files); // Process them
+            }
+        });
+
+        // 'click' on upload zone = open file browser dialog
+        uploadZone.addEventListener('click', () => {
+            fileInput.click(); // Trigger the hidden file input
+        });
+
+        // When files are selected via the file browser dialog
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
+        });
+
+        // ---- FILE UPLOAD ----
+        function handleFiles(files) {
+            // Upload each file one by one
+            for (const file of files) {
+                uploadFile(file);
+            }
+        }
+
+        function uploadFile(file) {
+            /*
+                WHAT: FormData is a special object that packages a file
+                      for sending over HTTP (like putting it in an envelope).
+                WHY:  HTTP was designed for text. To send a binary file (image, pdf, etc.),
+                      we need to encode it properly. FormData handles this for us.
+                HOW:  We create a FormData, append the file to it, then send it
+                      using XMLHttpRequest (XHR) — an older but reliable way to
+                      make HTTP requests from JavaScript.
+            */
+            const formData = new FormData();
+            formData.append('file', file); // 'file' is the key our Go server expects
+
+            const xhr = new XMLHttpRequest();
+
+            // ---- TRACK UPLOAD PROGRESS ----
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `Uploading "${file.name}"... ${percent}%`;
+                }
+            });
+
+            // Show progress bar
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            // ---- WHEN UPLOAD FINISHES ----
+            xhr.addEventListener('load', () => {
+                progressContainer.style.display = 'none';
+                if (xhr.status === 200) {
+                    showStatus(`✅ "${file.name}" uploaded successfully!`, 'success');
+                    loadFiles(); // Refresh the file list
+                } else {
+                    showStatus(`❌ Failed to upload "${file.name}": ${xhr.responseText}`, 'error');
+                }
+            });
+
+            // ---- IF UPLOAD FAILS (network error) ----
+            xhr.addEventListener('error', () => {
+                progressContainer.style.display = 'none';
+                showStatus(`❌ Network error uploading "${file.name}"`, 'error');
+            });
+
+            // Send the request to our Go server
+            // POST = "I'm SENDING data to you" (as opposed to GET = "give me data")
+            xhr.open('POST', '/upload');
+            xhr.send(formData);
+        }
+
+        // ---- STATUS MESSAGES ----
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = 'status ' + type; // 'status success' or 'status error'
+            // Auto-hide after 4 seconds
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 4000);
+        }
+
+        // ---- LOAD FILE LIST ----
+        function loadFiles() {
+            /*
+                fetch('/files') sends a GET request to our Go server.
+                The server responds with JSON like:
+                [
+                    {"name": "notes.pdf", "size": "2.5 MB", "modTime": "2024-01-15 10:30"},
+                    {"name": "photo.jpg", "size": "1.1 MB", "modTime": "2024-01-15 11:00"}
+                ]
+                We then create HTML elements for each file.
+            */
+            fetch('/files')
+                .then(response => response.json())
+                .then(files => {
+                    if (files.length === 0) {
+                        fileList.innerHTML = `
+                            <li class="empty-state">
+                                <div class="empty-icon">📭</div>
+                                <p>No files shared yet. Upload something!</p>
+                            </li>`;
+                        return;
+                    }
+
+                    fileList.innerHTML = ''; // Clear the list
+
+                    files.forEach(file => {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        li.innerHTML = `
+                            <div class="file-info">
+                                <span class="file-icon">${getFileIcon(file.name)}</span>
+                                <div>
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-size">${file.size}</div>
+                                </div>
+                            </div>
+                            <a href="/download/${encodeURIComponent(file.name)}" class="download-btn">⬇ Download</a>`;
+                        fileList.appendChild(li);
+                    });
+                })
+                .catch(() => {
+                    // Server might not have the /files endpoint yet — that's OK
+                    console.log('Could not load files (endpoint may not exist yet)');
+                });
+        }
+
+        // ---- FILE ICON PICKER ----
+        // Returns an emoji based on the file extension
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📕', 'doc': '📘', 'docx': '📘', 'txt': '📄',
+                'jpg': '🖼️', 'jpeg': '🖼️', 'png': '🖼️', 'gif': '🖼️', 'svg': '🖼️',
+                'mp4': '🎬', 'avi': '🎬', 'mkv': '🎬', 'mov': '🎬',
+                'mp3': '🎵', 'wav': '🎵', 'flac': '🎵',
+                'zip': '📦', 'rar': '📦', '7z': '📦', 'tar': '📦', 'gz': '📦',
+                'py': '🐍', 'go': '🐹', 'js': '⚡', 'html': '🌐', 'css': '🎨',
+                'pptx': '📊', 'ppt': '📊', 'xlsx': '📗', 'xls': '📗', 'csv': '📗',
+                'exe': '⚙️', 'msi': '⚙️',
+            };
+            return icons[ext] || '📄';
+        }
+
+        // Load files when the page first opens
+        loadFiles();
+    </script>
+</body>
+</html>
