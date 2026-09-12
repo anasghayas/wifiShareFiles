@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"html/template"
 )
 
 func main() {
@@ -19,7 +20,19 @@ func main() {
 		// 'r' = Request — contains everything about the incoming request (URL, method, headers, etc.)
 
 		// fmt.Fprintf writes text into 'w', which sends it to the browser
-		fmt.Fprintf(w, "Hello from wifiShare! 🚀\nYour file sharing server is running.")
+		// Parse the HTML template from the 'templates' directory
+		tmpl, err := template.ParseFiles("templates/index.html")
+		if err != nil {
+			// If template file is missing or corrupted, return a 500 Internal Server Error
+			http.Error(w, "Could not load template: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		// Execute (render) the template into 'w' (the HTTP response to the browser)
+		err = tmpl.Execute(w, nil)
+		if err != nil {
+			http.Error(w, "Could not render template: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 
 	// WHAT: Start the HTTP server on port 8080
