@@ -23,4 +23,24 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 3. Security: Sanitize filename to prevent Directory Traversal Attacks
+	// WHAT: filepath.Base converts "../../secret.txt" -> "secret.txt"
+	// WHY:  Prevents malicious users from accessing files outside the uploads folder!
+	cleanFilename := filepath.Base(filename)
+	filePath := filepath.Join("./uploads", cleanFilename)
+
+	// 4. Check if the requested file actually exists on disk
+	fileInfo, err := os.Stat(filePath)
+	if os.IsNotExist(err) || fileInfo.IsDir() {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	// 5. Tell the browser to download the file instead of displaying it inline
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+cleanFilename+"\"")
+
+	// 6. Efficiently stream the file to the browser
+	// WHAT: http.ServeFile handles reading the file from disk and sending it over network
+	// HOW:  It automatically handles content types, file streaming, and large files
+	http.ServeFile(w, r, filePath)
 }
