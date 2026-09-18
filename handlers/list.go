@@ -52,4 +52,22 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 	// 6. Encode fileList slice into JSON and send to client
 	json.NewEncoder(w).Encode(fileList)
 }
-feat: add file listing endpoint returning JSON
+// Helper function: Converts raw bytes (e.g. 2457600) into human readable string ("2.34 MB")
+func formatFileSize(bytes int64) string {
+	const (
+		_  = iota
+		KB = 1 << (10 * iota) // 1024 bytes
+		MB                    // 1024 * 1024 bytes
+		GB                    // 1024 * 1024 * 1024 bytes
+	)
+	switch {
+	case bytes >= GB:
+		return fmt.Sprintf("%.2f GB", float64(bytes)/float64(GB))
+	case bytes >= MB:
+		return fmt.Sprintf("%.2f MB", float64(bytes)/float64(MB))
+	case bytes >= KB:
+		return fmt.Sprintf("%.2f KB", float64(bytes)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", bytes)
+	}
+}
