@@ -8,6 +8,11 @@ import (
 )
 
 func main() {
+// 1. Automatically create the 'uploads' directory on server startup
+	uploadDir := "./uploads"
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		log.Fatalf("Failed to create uploads directory: %v", err)
+	}
 	// WHAT: Register a "handler" for the root URL path "/"
 	// WHY:  When someone visits http://localhost:8080/ in their browser,
 	//       Go needs to know WHICH function to run. This line says:
@@ -21,6 +26,11 @@ func main() {
 
 		// fmt.Fprintf writes text into 'w', which sends it to the browser
 		// Parse the HTML template from the 'templates' directory
+		// Only serve index.html for exact path "/", otherwise return 404
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
 		tmpl, err := template.ParseFiles("templates/index.html")
 		if err != nil {
 			// If template file is missing or corrupted, return a 500 Internal Server Error
@@ -34,7 +44,10 @@ func main() {
 			return
 		}
 	})
-
+	// 3. Register backend handlers from our 'handlers' package
+	http.HandleFunc("/upload", handlers.UploadHandler)
+	http.HandleFunc("/download/", handlers.DownloadHandler)
+	http.HandleFunc("/files", handlers.ListHandler)
 	// WHAT: Start the HTTP server on port 8080
 	// WHY:  The server needs to "listen" for incoming requests.
 	//       Think of it like opening a shop — you set up inside, then open the door.
