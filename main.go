@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
-	"html/template"
+	"os"
+	"shareFiles/handlers" // Imports our custom handlers package
 )
 
 func main() {
