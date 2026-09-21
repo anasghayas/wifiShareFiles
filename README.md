@@ -9,3 +9,6 @@
 ### Why direct IP connection / pinging fails on Campus WiFi:
 On campus networks (like those managed by **Sophos**), **Client Isolation** is enabled. Even though you and your friend are on the same subnet with the same Default Gateway (`192.168.156.1`), the WiFi router blocks direct device-to-device communication. 
 
+### The Solution:
+`wifiShare` runs a lightweight **Go HTTP server** on your laptop and uses **Cloudflare Quick Tunnels** to create a secure public relay URL (`https://<random-id>.trycloudflare.com`). 
+Your friend simply opens that URL in their browser to upload and download files — no installation needed on their end!
