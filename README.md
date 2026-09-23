@@ -23,3 +23,17 @@ Your friend simply opens that URL in their browser to upload and download files 
 - 📦 **File Management**: Auto-formatting file sizes (KB, MB, GB) and file icons.
 - 🛑 **50MB Upload Limit**: Enforced upload memory limit per request.
 ---
+
+## 📁 Project Structure
+```text
+wifiShare/
+├── main.go              # Entry point — initializes server & routes
+├── handlers/
+│   ├── upload.go        # POST /upload — handles file upload & disk saving
+│   ├── download.go      # GET /download/filename — handles file streaming
+│   └── list.go          # GET /files — returns JSON list of shared files
+├── templates/
+│   └── index.html       # HTML / CSS / JS frontend UI
+├── uploads/             # Directory where shared files are stored (auto-created)
+├── go.mod               # Go module definition
+└── README.md            # Project documentation
