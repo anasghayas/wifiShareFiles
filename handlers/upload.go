@@ -16,14 +16,17 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Set max upload size to 50MB
+	// 2. Set max upload size to 5GB (5 << 30 bytes)
 	// WHAT: 50 << 20 means 50 shifted left by 20 bits = 50 * 1024 * 1024 = 52,428,800 bytes (50 MB)
 	// WHY:  Protects your server from running out of RAM if someone uploads a huge file.
-	const maxUploadSize = 50 << 20 // 50MB
+	// WHAT: 5 << 30 means 5 * 1024 * 1024 * 1024 = 5,368,709,120 bytes (5 GB)
+	const maxUploadSize = 5 << 30 // 5GB
+	// Limit request body size to 5GB
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
-
-	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-		http.Error(w, "File too large. Max limit is 50MB", http.StatusBadRequest)
+	// Keep RAM memory buffer at 32MB while streaming huge files to disk
+	const maxMemoryBuffer = 32 << 20 // 32MB RAM
+	if err := r.ParseMultipartForm(maxMemoryBuffer); err != nil {
+		http.Error(w, "File too large. Max limit is 5GB", http.StatusBadRequest)
 		return
 	}
 
