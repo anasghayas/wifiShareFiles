@@ -111,10 +111,9 @@ func ChunkCompleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Parse form to get the filename
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
+	// 1. Parse form to get the filename (supports both multipart and urlencoded)
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		_ = r.ParseForm()
 	}
 
 	filename := r.FormValue("filename")
