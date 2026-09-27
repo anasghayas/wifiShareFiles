@@ -48,6 +48,9 @@ func main() {
 	})
 	// 3. Register backend handlers from our 'handlers' package
 	http.HandleFunc("/upload", handlers.UploadHandler)
+	http.HandleFunc("/upload/chunk", handlers.ChunkUploadHandler)
+	http.HandleFunc("/upload/complete", handlers.ChunkCompleteHandler)
+	http.HandleFunc("/delete/", handlers.DeleteHandler)
 	http.HandleFunc("/download/", handlers.DownloadHandler)
 	http.HandleFunc("/files", handlers.ListHandler)
 	// WHAT: Start the HTTP server on port 8080

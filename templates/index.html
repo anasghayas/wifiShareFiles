@@ -276,6 +276,31 @@
             box-shadow: 0 4px 15px rgba(167, 139, 250, 0.3);
         }
 
+        .file-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .delete-btn {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .delete-btn:hover {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: #ef4444;
+            transform: translateY(-1px);
+        }
+
         .empty-state {
             text-align: center;
             padding: 2rem;
@@ -304,7 +329,8 @@
                 align-items: flex-start;
                 gap: 0.75rem;
             }
-            .download-btn { width: 100%; text-align: center; }
+            .file-actions { width: 100%; }
+            .download-btn { flex: 1; text-align: center; }
         }
     </style>
 </head>
@@ -405,86 +431,131 @@
             }
         });
 
-        // ---- FILE UPLOAD ----
-        function handleFiles(files) {
-            // Upload each file one by one
+        // ---- FILE UPLOAD (CHUNKED FOR LARGE FILES) ----
+        const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
+
+        async function handleFiles(files) {
+            // Upload each selected file one after another
             for (const file of files) {
-                uploadFile(file);
+                await uploadFile(file);
             }
         }
 
-        function uploadFile(file) {
-            /*
-                WHAT: FormData is a special object that packages a file
-                      for sending over HTTP (like putting it in an envelope).
-                WHY:  HTTP was designed for text. To send a binary file (image, pdf, etc.),
-                      we need to encode it properly. FormData handles this for us.
-                HOW:  We create a FormData, append the file to it, then send it
-                      using XMLHttpRequest (XHR) — an older but reliable way to
-                      make HTTP requests from JavaScript.
-            */
-            const formData = new FormData();
-            formData.append('file', file); // 'file' is the key our Go server expects
+        async function uploadFile(file) {
+            const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-            const xhr = new XMLHttpRequest();
-
-            // ---- TRACK UPLOAD PROGRESS ----
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percent = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percent + '%';
-                    progressText.textContent = `Uploading "${file.name}"... ${percent}%`;
-                }
-            });
-
-            // Show progress bar
             progressContainer.style.display = 'block';
             progressBar.style.width = '0%';
+            progressText.textContent = `Preparing "${file.name}" (0/${totalChunks} chunks)...`;
 
-            // ---- WHEN UPLOAD FINISHES ----
-            xhr.addEventListener('load', () => {
-                progressContainer.style.display = 'none';
-                if (xhr.status === 200) {
-                    showStatus(`✅ "${file.name}" uploaded successfully!`, 'success');
-                    loadFiles(); // Refresh the file list
-                } else {
-                    showStatus(`❌ Failed to upload "${file.name}": ${xhr.responseText}`, 'error');
+            for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+                const start = chunkIdx * CHUNK_SIZE;
+                const end = Math.min(start + CHUNK_SIZE, file.size);
+                const chunkBlob = file.slice(start, end);
+
+                const formData = new FormData();
+                formData.append('file', chunkBlob, file.name);
+                formData.append('filename', file.name);
+                formData.append('chunkIndex', chunkIdx.toString());
+                formData.append('totalChunks', totalChunks.toString());
+
+                let success = false;
+                let lastErr = '';
+
+                // Retry each 10MB chunk up to 3 times in case campus WiFi drops a packet
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        const res = await fetch('/upload/chunk', {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(errText || `HTTP ${res.status}`);
+                        }
+
+                        success = true;
+                        break;
+                    } catch (err) {
+                        lastErr = err.message;
+                        if (attempt < 3) {
+                            progressText.textContent = `Retrying chunk ${chunkIdx + 1}/${totalChunks} (Attempt ${attempt + 1}/3)...`;
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                    }
                 }
-            });
 
-            // ---- IF UPLOAD FAILS (network error) ----
-            xhr.addEventListener('error', () => {
+                if (!success) {
+                    progressContainer.style.display = 'none';
+                    showStatus(`❌ Failed at chunk ${chunkIdx + 1}/${totalChunks}: ${lastErr}`, 'error');
+                    return;
+                }
+
+                const percent = Math.round(((chunkIdx + 1) / totalChunks) * 100);
+                progressBar.style.width = percent + '%';
+                progressText.textContent = `Uploading "${file.name}"... ${percent}% (${chunkIdx + 1}/${totalChunks} chunks)`;
+            }
+
+            // All chunks received by Go server! Ask server to assemble them into the final file
+            progressText.textContent = `Assembling "${file.name}" on server...`;
+            try {
+                const completeForm = new FormData();
+                completeForm.append('filename', file.name);
+
+                const completeRes = await fetch('/upload/complete', {
+                    method: 'POST',
+                    body: completeForm
+                });
+
                 progressContainer.style.display = 'none';
-                showStatus(`❌ Network error uploading "${file.name}"`, 'error');
-            });
 
-            // Send the request to our Go server
-            // POST = "I'm SENDING data to you" (as opposed to GET = "give me data")
-            xhr.open('POST', '/upload');
-            xhr.send(formData);
+                if (completeRes.ok) {
+                    showStatus(`✅ "${file.name}" uploaded successfully!`, 'success');
+                    loadFiles(); // Refresh file list
+                } else {
+                    const errText = await completeRes.text();
+                    showStatus(`❌ Merge failed for "${file.name}": ${errText}`, 'error');
+                }
+            } catch (err) {
+                progressContainer.style.display = 'none';
+                showStatus(`❌ Assembly request failed: ${err.message}`, 'error');
+            }
         }
 
         // ---- STATUS MESSAGES ----
         function showStatus(message, type) {
             statusMessage.textContent = message;
-            statusMessage.className = 'status ' + type; // 'status success' or 'status error'
-            // Auto-hide after 4 seconds
+            statusMessage.className = 'status ' + type;
             setTimeout(() => {
                 statusMessage.style.display = 'none';
-            }, 4000);
+            }, 4500);
+        }
+
+        // ---- DELETE FILE ----
+        async function deleteFile(encodedFilename) {
+            const filename = decodeURIComponent(encodedFilename);
+            if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+                return;
+            }
+            try {
+                const res = await fetch(`/delete/${encodedFilename}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    showStatus(`🗑️ "${filename}" deleted!`, 'success');
+                    loadFiles();
+                } else {
+                    const errText = await res.text();
+                    showStatus(`❌ Failed to delete "${filename}": ${errText}`, 'error');
+                }
+            } catch (err) {
+                showStatus(`❌ Error deleting "${filename}": ${err.message}`, 'error');
+            }
         }
 
         // ---- LOAD FILE LIST ----
         function loadFiles() {
-            /*
-                fetch('/files') sends a GET request to our Go server.
-                The server responds with JSON like:
-                [
-                    {"name": "notes.pdf", "size": "2.5 MB", "modTime": "2024-01-15 10:30"},
-                    {"name": "photo.jpg", "size": "1.1 MB", "modTime": "2024-01-15 11:00"}
-                ]
-                We then create HTML elements for each file.
-            */
             fetch('/files')
                 .then(response => response.json())
                 .then(files => {
@@ -497,7 +568,7 @@
                         return;
                     }
 
-                    fileList.innerHTML = ''; // Clear the list
+                    fileList.innerHTML = ''; // Clear list
 
                     files.forEach(file => {
                         const li = document.createElement('li');
@@ -510,13 +581,15 @@
                                     <div class="file-size">${file.size}</div>
                                 </div>
                             </div>
-                            <a href="/download/${encodeURIComponent(file.name)}" class="download-btn">⬇ Download</a>`;
+                            <div class="file-actions">
+                                <a href="/download/${encodeURIComponent(file.name)}" class="download-btn">⬇ Download</a>
+                                <button onclick="deleteFile('${encodeURIComponent(file.name)}')" class="delete-btn" title="Delete file">🗑️</button>
+                            </div>`;
                         fileList.appendChild(li);
                     });
                 })
                 .catch(() => {
-                    // Server might not have the /files endpoint yet — that's OK
-                    console.log('Could not load files (endpoint may not exist yet)');
+                    console.log('Could not load files');
                 });
         }
 
