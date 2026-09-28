@@ -63,6 +63,12 @@ func main() {
 	fmt.Println("📁 Open your browser and go to: http://localhost:8080")
 	fmt.Println("🛑 Press Ctrl+C to stop the server")
 
+	// 4. Start the background cleanup worker (deletes files older than 24 hours)
+	//    'go' keyword = launch as a goroutine (lightweight background thread)
+	//    This runs silently alongside the HTTP server — no extra terminal needed!
+	go handlers.StartCleanupWorker()
+	fmt.Println("🧹 Auto-cleanup worker started (deletes files older than 24 hours)")
+
 	// log.Fatal: if the server fails to start (e.g., port already in use),
 	// it prints the error and exits the program
 	log.Fatal(http.ListenAndServe(":8080", nil))
