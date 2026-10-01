@@ -312,6 +312,94 @@
             margin-bottom: 0.75rem;
         }
 
+        /* ---- ADMIN BAR ---- */
+        .admin-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1.25rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .admin-bar.locked {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .admin-bar.unlocked {
+            background: rgba(52, 211, 153, 0.08);
+            border: 1px solid rgba(52, 211, 153, 0.2);
+        }
+
+        .admin-status {
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .admin-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .admin-bar.locked .admin-label { color: #f87171; }
+        .admin-bar.unlocked .admin-label { color: #34d399; }
+
+        .admin-password-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.45rem 0.75rem;
+            color: #e5e7eb;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .admin-password-input:focus {
+            border-color: #a78bfa;
+        }
+
+        .admin-password-input::placeholder {
+            color: #6b7280;
+        }
+
+        .admin-btn {
+            padding: 0.45rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            border: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .admin-btn.unlock {
+            background: linear-gradient(135deg, #34d399, #06b6d4);
+            color: white;
+        }
+
+        .admin-btn.unlock:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(52, 211, 153, 0.3);
+        }
+
+        .admin-btn.lock {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .admin-btn.lock:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
         /* ---- ANIMATIONS ---- */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
@@ -331,6 +419,8 @@
             }
             .file-actions { width: 100%; }
             .download-btn { flex: 1; text-align: center; }
+            .admin-bar { flex-wrap: wrap; }
+            .admin-password-input { min-width: 0; }
         }
     </style>
 </head>
@@ -338,6 +428,14 @@
     <div class="container">
         <h1>📁 wifiShare</h1>
         <p class="subtitle">Drop files here to share with friends on campus</p>
+
+        <!-- Admin Bar -->
+        <div class="admin-bar locked" id="adminBar">
+            <span class="admin-status" id="adminIcon">🔒</span>
+            <span class="admin-label" id="adminLabel">Locked</span>
+            <input type="password" class="admin-password-input" id="adminPassword" placeholder="Enter admin password...">
+            <button class="admin-btn unlock" id="adminBtn" onclick="toggleAuth()">Unlock</button>
+        </div>
 
         <!-- Upload Zone -->
         <div class="upload-zone" id="uploadZone">
@@ -431,6 +529,81 @@
             }
         });
 
+        // ---- ADMIN AUTH ----
+        // getAuthHeaders() returns the password header to include in protected requests.
+        // sessionStorage = browser storage that clears when you close the tab.
+        // This means you stay "logged in" across page refreshes, but not forever.
+        function getAuthHeaders() {
+            const pw = sessionStorage.getItem('adminPassword');
+            if (pw) {
+                return { 'X-Admin-Password': pw };
+            }
+            return {};
+        }
+
+        // Toggle between locked/unlocked state
+        function toggleAuth() {
+            const bar = document.getElementById('adminBar');
+            const icon = document.getElementById('adminIcon');
+            const label = document.getElementById('adminLabel');
+            const input = document.getElementById('adminPassword');
+            const btn = document.getElementById('adminBtn');
+
+            if (bar.classList.contains('locked')) {
+                // Trying to UNLOCK
+                const pw = input.value.trim();
+                if (!pw) {
+                    showStatus('❌ Please enter a password', 'error');
+                    return;
+                }
+                sessionStorage.setItem('adminPassword', pw);
+                bar.classList.remove('locked');
+                bar.classList.add('unlocked');
+                icon.textContent = '🔓';
+                label.textContent = 'Unlocked';
+                input.style.display = 'none';
+                btn.textContent = 'Lock';
+                btn.className = 'admin-btn lock';
+                showStatus('🔓 Admin access unlocked!', 'success');
+            } else {
+                // Trying to LOCK
+                sessionStorage.removeItem('adminPassword');
+                bar.classList.remove('unlocked');
+                bar.classList.add('locked');
+                icon.textContent = '🔒';
+                label.textContent = 'Locked';
+                input.value = '';
+                input.style.display = '';
+                btn.textContent = 'Unlock';
+                btn.className = 'admin-btn unlock';
+                showStatus('🔒 Admin access locked', 'success');
+            }
+        }
+
+        // Allow pressing Enter in the password field to unlock
+        document.getElementById('adminPassword').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') toggleAuth();
+        });
+
+        // Restore admin state from sessionStorage on page load
+        (function restoreAuthState() {
+            const pw = sessionStorage.getItem('adminPassword');
+            if (pw) {
+                const bar = document.getElementById('adminBar');
+                const icon = document.getElementById('adminIcon');
+                const label = document.getElementById('adminLabel');
+                const input = document.getElementById('adminPassword');
+                const btn = document.getElementById('adminBtn');
+                bar.classList.remove('locked');
+                bar.classList.add('unlocked');
+                icon.textContent = '🔓';
+                label.textContent = 'Unlocked';
+                input.style.display = 'none';
+                btn.textContent = 'Lock';
+                btn.className = 'admin-btn lock';
+            }
+        })();
+
         // ---- FILE UPLOAD (CHUNKED FOR LARGE FILES) ----
         const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
 
@@ -467,9 +640,13 @@
                     try {
                         const res = await fetch('/upload/chunk', {
                             method: 'POST',
+                            headers: getAuthHeaders(),
                             body: formData
                         });
 
+                        if (res.status === 401) {
+                            throw new Error('Wrong admin password — unlock first!');
+                        }
                         if (!res.ok) {
                             const errText = await res.text();
                             throw new Error(errText || `HTTP ${res.status}`);
@@ -505,6 +682,7 @@
 
                 const completeRes = await fetch('/upload/complete', {
                     method: 'POST',
+                    headers: getAuthHeaders(),
                     body: completeForm
                 });
 
@@ -540,7 +718,8 @@
             }
             try {
                 const res = await fetch(`/delete/${encodedFilename}`, {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
                 });
                 if (res.ok) {
                     showStatus(`🗑️ "${filename}" deleted!`, 'success');
