@@ -24,6 +24,7 @@ Your friend simply opens that URL in their browser to upload and download files 
 - ⏰ **24-Hour Auto-Cleanup**: A background goroutine silently scans `uploads/` every hour and deletes files older than 24 hours — no cron job needed.
 - 📊 **Live Progress Bar**: Real-time upload progress showing chunk count (`"Uploading... 45% (145/320 chunks)"`).
 - 🔒 **Secure**: Path traversal protection (`filepath.Base`) on all endpoints to prevent unauthorized file access.
+- 🔐 **Admin Auth**: Password-protect uploads & deletes with a `-password` flag. Friends can still browse and download freely.
 - 📱 **Mobile-Friendly**: Responsive design that works on phones — upload from mobile data or WiFi.
 
 ---
@@ -38,7 +39,12 @@ Your friend simply opens that URL in their browser to upload and download files 
 ```bash
 git clone <your-repo-url>
 cd wifiShare
+
+# Without password (anyone can upload/delete):
 go run main.go
+
+# With password protection (recommended):
+go run main.go -password yourSecretPassword
 ```
 
 You should see:
@@ -46,6 +52,7 @@ You should see:
 🚀 wifiShare server starting...
 📁 Open your browser and go to: http://localhost:8080
 🛑 Press Ctrl+C to stop the server
+🔐 Admin auth ENABLED — upload/delete require password
 🧹 Auto-cleanup worker started (deletes files older than 24 hours)
 ```
 
