@@ -77,6 +77,7 @@ Send that URL to your friends — they can upload & download files from their br
 wifiShare/
 ├── main.go                   # Entry point — server, routes & cleanup worker
 ├── handlers/
+│   ├── auth.go               # RequireAuth middleware — password-checks protected routes
 │   ├── upload.go             # POST /upload — single-request upload (small files)
 │   ├── chunk_upload.go       # POST /upload/chunk & /upload/complete — chunked upload (large files)
 │   ├── download.go           # GET /download/{filename} — file streaming
@@ -84,7 +85,7 @@ wifiShare/
 │   ├── list.go               # GET /files — JSON list of shared files
 │   └── cleanup.go            # Background goroutine — auto-deletes files > 24 hours old
 ├── templates/
-│   └── index.html            # Frontend UI (HTML / CSS / JS with chunked upload logic)
+│   └── index.html            # Frontend UI (HTML / CSS / JS with chunked upload + admin bar)
 ├── uploads/                  # Shared files stored here (auto-created on startup)
 │   └── .chunks/              # Temp directory for in-progress chunked uploads (auto-cleaned)
 ├── go.mod                    # Go module definition
@@ -95,15 +96,17 @@ wifiShare/
 
 ## 🔗 API Endpoints
 
-| Method | Route | Handler | Description |
-|--------|-------|---------|-------------|
-| `GET` | `/` | inline in `main.go` | Serves the web UI |
-| `POST` | `/upload` | `UploadHandler` | Single-request upload (files < 100MB) |
-| `POST` | `/upload/chunk` | `ChunkUploadHandler` | Receives one 10MB chunk |
-| `POST` | `/upload/complete` | `ChunkCompleteHandler` | Merges all chunks into final file |
-| `GET` | `/download/{file}` | `DownloadHandler` | Streams a file for download |
-| `DELETE` | `/delete/{file}` | `DeleteHandler` | Deletes a file from disk |
-| `GET` | `/files` | `ListHandler` | Returns JSON array of uploaded files |
+| Method | Route | Handler | Auth | Description |
+|--------|-------|---------|:----:|-------------|
+| `GET` | `/` | inline in `main.go` | 🔓 | Serves the web UI |
+| `POST` | `/upload` | `UploadHandler` | 🔒 | Single-request upload (files < 100MB) |
+| `POST` | `/upload/chunk` | `ChunkUploadHandler` | 🔒 | Receives one 10MB chunk |
+| `POST` | `/upload/complete` | `ChunkCompleteHandler` | 🔒 | Merges all chunks into final file |
+| `GET` | `/download/{file}` | `DownloadHandler` | 🔓 | Streams a file for download |
+| `DELETE` | `/delete/{file}` | `DeleteHandler` | 🔒 | Deletes a file from disk |
+| `GET` | `/files` | `ListHandler` | 🔓 | Returns JSON array of uploaded files |
+
+🔒 = Requires admin password &nbsp;&nbsp; 🔓 = Open to everyone
 
 ---
 
