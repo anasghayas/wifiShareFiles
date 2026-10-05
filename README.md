@@ -161,6 +161,23 @@ main.go starts
 | Upload / Download from outside | ✅ Required | ✅ Required |
 | 🗑️ Delete button | ✅ Required | ❌ Not needed |
 | ⏰ 24hr auto-cleanup | ✅ Required | ❌ Not needed |
+| 🔐 Admin auth | ✅ Required | ❌ Not needed |
+
+### How does admin auth work?
+Start the server with a password:
+```bash
+go run main.go -password yourSecretPassword
+```
+On the web page, type the password in the **Admin Bar** and click **Unlock**. Now you can upload and delete files. Without unlocking, uploads and deletes are blocked with a `401 Unauthorized` error. **Browsing and downloading are always open** — friends don't need the password to download files.
+
+### Can friends still download if I set a password?
+**Yes!** The password only protects **uploads** and **deletes**. The file list (`/files`) and downloads (`/download/`) are always open. Friends just can't upload new files or delete existing ones without the password.
+
+### What if I forget to set a password?
+If you run `go run main.go` without the `-password` flag, auth is **disabled** — everything works exactly like before, no password needed for anything. The terminal will show:
+```
+🔓 Admin auth DISABLED — anyone can upload/delete (use -password to enable)
+```
 
 ### Can friends upload from mobile data?
 **Yes!** As long as Cloudflare tunnel is running, anyone with the URL can upload — WiFi, mobile data, doesn't matter.
