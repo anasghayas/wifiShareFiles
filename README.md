@@ -194,3 +194,7 @@ The chunked upload system retries each 10MB chunk up to 3 times automatically. I
 - **[Go](https://go.dev/)** — Backend server & file handling
 - **[Cloudflare Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/)** — Public URL relay (free, no account needed)
 - **Vanilla HTML/CSS/JS** — Frontend UI (no frameworks, no npm)
+
+---
+
+<p align="center">Made with ❤️ by <a href="https://github.com/anasghayas">anasghayas</a></p>
